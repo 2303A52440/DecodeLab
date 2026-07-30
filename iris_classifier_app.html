@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Key — Iris Classifier</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --paper: #ebe7d6;
+    --paper-deep: #e2ddc7;
+    --ink: #22301d;
+    --ink-soft: #5a6350;
+    --line: #a9a084;
+    --line-soft: #c9c2a8;
+    --setosa: #3e6c8e;
+    --versicolor: #b9822f;
+    --virginica: #8b3f52;
+    --live: #c9541c;
+    --paper-rgb: 235, 231, 214;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    background-image:
+      radial-gradient(ellipse at top left, rgba(255,255,255,0.25), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(34,48,29,0.025) 0px, rgba(34,48,29,0.025) 1px, transparent 1px, transparent 32px);
+    color: var(--ink);
+    font-family: 'Source Serif 4', Georgia, serif;
+    min-height: 100vh;
+    padding: 28px 18px 60px;
+  }
+
+  .sheet {
+    max-width: 980px;
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.18);
+    position: relative;
+  }
+  .sheet::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border: 1px solid var(--line-soft);
+    pointer-events: none;
+  }
+
+  /* ---------- Header / specimen label ---------- */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 26px 32px 18px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 40px);
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+  }
+  h1 em {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--ink-soft);
+  }
+  .specimen-no {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    text-align: right;
+    color: var(--ink-soft);
+    line-height: 1.6;
+  }
+  .specimen-no b { color: var(--ink); }
+
+  /* ---------- Body grid ---------- */
+  .body-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  @media (max-width: 760px) {
+    .body-grid { grid-template-columns: 1fr; }
+  }
+  .col {
+    padding: 26px 32px;
+  }
+  .col.controls {
+    border-right: 1px solid var(--line);
+  }
+  @media (max-width: 760px) {
+    .col.controls { border-right: none; border-bottom: 1px solid var(--line); }
+  }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--line-soft);
+  }
+
+  /* ---------- Measurement controls ---------- */
+  .measure {
+    margin-bottom: 20px;
+  }
+  .measure-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .measure-name {
+    font-size: 15px;
+  }
+  .measure-name .part { font-weight: 600; }
+  .measure-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    background: rgba(34,48,29,0.06);
+    padding: 2px 8px;
+    border: 1px solid var(--line-soft);
+    min-width: 62px;
+    text-align: center;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 18px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px;
+    background: var(--line);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    margin-top: -7px;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 2px solid var(--live);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 3px;
+    background: var(--line);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 2px solid var(--live);
+  }
+  .measure-scale {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    margin-top: 3px;
+  }
+
+  .presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+  .preset-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    padding: 7px 12px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .preset-btn:hover { background: rgba(34,48,29,0.06); border-color: var(--ink-soft); }
+
+  /* ---------- Result panel ---------- */
+  .result-card {
+    margin-top: 24px;
+    border: 1px solid var(--line);
+    padding: 18px 20px;
+    background: rgba(255,255,255,0.35);
+  }
+  .result-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .flower-icon { flex-shrink: 0; }
+  .result-species {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 24px;
+    line-height: 1.15;
+  }
+  .result-common {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  .confidence-row {
+    margin-top: 16px;
+  }
+  .confidence-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .confidence-bar {
+    height: 6px;
+    background: rgba(34,48,29,0.08);
+    position: relative;
+    overflow: hidden;
+  }
+  .confidence-fill {
+    height: 100%;
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+
+  .neighbors {
+    margin-top: 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .neighbors-title { margin-bottom: 6px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .neighbor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border: 1px solid var(--line-soft);
+    margin: 0 6px 6px 0;
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ---------- Scatter plot ---------- */
+  .plot-wrap svg { width: 100%; height: auto; display: block; }
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+
+  footer {
+    padding: 16px 32px 22px;
+    border-top: 1px solid var(--line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <header>
+    <div>
+      <div class="eyebrow">Field Identification Key · Genus Iris</div>
+      <h1>Measure a bloom,<br><em>meet its species.</em></h1>
+    </div>
+    <div class="specimen-no">
+      SPECIMEN <b id="specimenNo">No. 151</b><br>
+      k-NN CLASSIFIER · k = 3<br>
+      REFERENCE SET: 150 PRESSED SAMPLES
+    </div>
+  </header>
+
+  <div class="body-grid">
+    <div class="col controls">
+      <div class="section-label">Take the measurements</div>
+
+      <div class="measure">
+        <div class="measure-top">
+          <span class="measure-name"><span class="part">Sepal</span> length</span>
+          <span class="measure-value" id="val-sl">5.8 cm</span>
+        </div>
+        <input type="range" id="sl" min="4.3" max="7.9" step="0.1" value="5.8">
+        <div class="measure-scale"><span>4.3</span><span>7.9 cm</span></div>
+      </div>
+
+      <div class="measure">
+        <div class="measure-top">
+          <span class="measure-name"><span class="part">Sepal</span> width</span>
+          <span class="measure-value" id="val-sw">2.8 cm</span>
+        </div>
+        <input type="range" id="sw" min="2.0" max="4.4" step="0.1" value="2.8">
+        <div class="measure-scale"><span>2.0</span><span>4.4 cm</span></div>
+      </div>
+
+      <div class="measure">
+        <div class="measure-top">
+          <span class="measure-name"><span class="part">Petal</span> length</span>
+          <span class="measure-value" id="val-pl">5.1 cm</span>
+        </div>
+        <input type="range" id="pl" min="1.0" max="6.9" step="0.1" value="5.1">
+        <div class="measure-scale"><span>1.0</span><span>6.9 cm</span></div>
+      </div>
+
+      <div class="measure">
+        <div class="measure-top">
+          <span class="measure-name"><span class="part">Petal</span> width</span>
+          <span class="measure-value" id="val-pw">2.4 cm</span>
+        </div>
+        <input type="range" id="pw" min="0.1" max="2.5" step="0.1" value="2.4">
+        <div class="measure-scale"><span>0.1</span><span>2.5 cm</span></div>
+      </div>
+
+      <div class="presets">
+        <button class="preset-btn" data-preset="setosa">Load setosa-like</button>
+        <button class="preset-btn" data-preset="versicolor">Load versicolor-like</button>
+        <button class="preset-btn" data-preset="virginica">Load virginica-like</button>
+        <button class="preset-btn" data-preset="random">Shuffle random</button>
+      </div>
+
+      <div class="result-card">
+        <div class="result-top">
+          <div class="flower-icon" id="flowerIcon"></div>
+          <div>
+            <div class="result-species" id="resultSpecies">Iris virginica</div>
+            <div class="result-common" id="resultCommon">Predicted identification</div>
+          </div>
+        </div>
+        <div class="confidence-row">
+          <div class="confidence-label"><span>Vote agreement (k=3)</span><span id="confidenceText">3 / 3</span></div>
+          <div class="confidence-bar"><div class="confidence-fill" id="confidenceFill"></div></div>
+        </div>
+        <div class="neighbors">
+          <div class="neighbors-title">Nearest pressed specimens</div>
+          <div id="neighborList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="section-label">Where it falls on record</div>
+      <div class="plot-wrap"><svg id="scatter" viewBox="0 0 460 420" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      <div class="legend">
+        <div class="legend-item"><span class="dot" style="background:var(--setosa)"></span>setosa (50 pressed)</div>
+        <div class="legend-item"><span class="dot" style="background:var(--versicolor)"></span>versicolor (50 pressed)</div>
+        <div class="legend-item"><span class="dot" style="background:var(--virginica)"></span>virginica (50 pressed)</div>
+        <div class="legend-item"><span class="dot" style="background:var(--live)"></span>your specimen</div>
+      </div>
+      <p style="margin-top:16px; font-size:13px; color:var(--ink-soft); line-height:1.55;">
+        Plotted by petal length and petal width — the two measurements that separate
+        the three species most cleanly. Every dot is one of the 150 reference
+        flowers; the orange marker is the specimen you're measuring right now.
+      </p>
+    </div>
+  </div>
+
+  <footer>
+    <span>Reference data: Fisher's Iris dataset (1936), 150 specimens, 3 species, 4 measurements each.</span>
+    <span>Built for Project 2 — Data Classification Using AI</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   REFERENCE DATA — 150 measured specimens
+   [sepal length, sepal width, petal length, petal width, species]
+   species: 0 = setosa, 1 = versicolor, 2 = virginica
+   ============================================================ */
+const IRIS_DATA = [[5.1, 3.5, 1.4, 0.2, 0], [4.9, 3.0, 1.4, 0.2, 0], [4.7, 3.2, 1.3, 0.2, 0], [4.6, 3.1, 1.5, 0.2, 0], [5.0, 3.6, 1.4, 0.2, 0], [5.4, 3.9, 1.7, 0.4, 0], [4.6, 3.4, 1.4, 0.3, 0], [5.0, 3.4, 1.5, 0.2, 0], [4.4, 2.9, 1.4, 0.2, 0], [4.9, 3.1, 1.5, 0.1, 0], [5.4, 3.7, 1.5, 0.2, 0], [4.8, 3.4, 1.6, 0.2, 0], [4.8, 3.0, 1.4, 0.1, 0], [4.3, 3.0, 1.1, 0.1, 0], [5.8, 4.0, 1.2, 0.2, 0], [5.7, 4.4, 1.5, 0.4, 0], [5.4, 3.9, 1.3, 0.4, 0], [5.1, 3.5, 1.4, 0.3, 0], [5.7, 3.8, 1.7, 0.3, 0], [5.1, 3.8, 1.5, 0.3, 0], [5.4, 3.4, 1.7, 0.2, 0], [5.1, 3.7, 1.5, 0.4, 0], [4.6, 3.6, 1.0, 0.2, 0], [5.1, 3.3, 1.7, 0.5, 0], [4.8, 3.4, 1.9, 0.2, 0], [5.0, 3.0, 1.6, 0.2, 0], [5.0, 3.4, 1.6, 0.4, 0], [5.2, 3.5, 1.5, 0.2, 0], [5.2, 3.4, 1.4, 0.2, 0], [4.7, 3.2, 1.6, 0.2, 0], [4.8, 3.1, 1.6, 0.2, 0], [5.4, 3.4, 1.5, 0.4, 0], [5.2, 4.1, 1.5, 0.1, 0], [5.5, 4.2, 1.4, 0.2, 0], [4.9, 3.1, 1.5, 0.2, 0], [5.0, 3.2, 1.2, 0.2, 0], [5.5, 3.5, 1.3, 0.2, 0], [4.9, 3.6, 1.4, 0.1, 0], [4.4, 3.0, 1.3, 0.2, 0], [5.1, 3.4, 1.5, 0.2, 0], [5.0, 3.5, 1.3, 0.3, 0], [4.5, 2.3, 1.3, 0.3, 0], [4.4, 3.2, 1.3, 0.2, 0], [5.0, 3.5, 1.6, 0.6, 0], [5.1, 3.8, 1.9, 0.4, 0], [4.8, 3.0, 1.4, 0.3, 0], [5.1, 3.8, 1.6, 0.2, 0], [4.6, 3.2, 1.4, 0.2, 0], [5.3, 3.7, 1.5, 0.2, 0], [5.0, 3.3, 1.4, 0.2, 0], [7.0, 3.2, 4.7, 1.4, 1], [6.4, 3.2, 4.5, 1.5, 1], [6.9, 3.1, 4.9, 1.5, 1], [5.5, 2.3, 4.0, 1.3, 1], [6.5, 2.8, 4.6, 1.5, 1], [5.7, 2.8, 4.5, 1.3, 1], [6.3, 3.3, 4.7, 1.6, 1], [4.9, 2.4, 3.3, 1.0, 1], [6.6, 2.9, 4.6, 1.3, 1], [5.2, 2.7, 3.9, 1.4, 1], [5.0, 2.0, 3.5, 1.0, 1], [5.9, 3.0, 4.2, 1.5, 1], [6.0, 2.2, 4.0, 1.0, 1], [6.1, 2.9, 4.7, 1.4, 1], [5.6, 2.9, 3.6, 1.3, 1], [6.7, 3.1, 4.4, 1.4, 1], [5.6, 3.0, 4.5, 1.5, 1], [5.8, 2.7, 4.1, 1.0, 1], [6.2, 2.2, 4.5, 1.5, 1], [5.6, 2.5, 3.9, 1.1, 1], [5.9, 3.2, 4.8, 1.8, 1], [6.1, 2.8, 4.0, 1.3, 1], [6.3, 2.5, 4.9, 1.5, 1], [6.1, 2.8, 4.7, 1.2, 1], [6.4, 2.9, 4.3, 1.3, 1], [6.6, 3.0, 4.4, 1.4, 1], [6.8, 2.8, 4.8, 1.4, 1], [6.7, 3.0, 5.0, 1.7, 1], [6.0, 2.9, 4.5, 1.5, 1], [5.7, 2.6, 3.5, 1.0, 1], [5.5, 2.4, 3.8, 1.1, 1], [5.5, 2.4, 3.7, 1.0, 1], [5.8, 2.7, 3.9, 1.2, 1], [6.0, 2.7, 5.1, 1.6, 1], [5.4, 3.0, 4.5, 1.5, 1], [6.0, 3.4, 4.5, 1.6, 1], [6.7, 3.1, 4.7, 1.5, 1], [6.3, 2.3, 4.4, 1.3, 1], [5.6, 3.0, 4.1, 1.3, 1], [5.5, 2.5, 4.0, 1.3, 1], [5.5, 2.6, 4.4, 1.2, 1], [6.1, 3.0, 4.6, 1.4, 1], [5.8, 2.6, 4.0, 1.2, 1], [5.0, 2.3, 3.3, 1.0, 1], [5.6, 2.7, 4.2, 1.3, 1], [5.7, 3.0, 4.2, 1.2, 1], [5.7, 2.9, 4.2, 1.3, 1], [6.2, 2.9, 4.3, 1.3, 1], [5.1, 2.5, 3.0, 1.1, 1], [5.7, 2.8, 4.1, 1.3, 1], [6.3, 3.3, 6.0, 2.5, 2], [5.8, 2.7, 5.1, 1.9, 2], [7.1, 3.0, 5.9, 2.1, 2], [6.3, 2.9, 5.6, 1.8, 2], [6.5, 3.0, 5.8, 2.2, 2], [7.6, 3.0, 6.6, 2.1, 2], [4.9, 2.5, 4.5, 1.7, 2], [7.3, 2.9, 6.3, 1.8, 2], [6.7, 2.5, 5.8, 1.8, 2], [7.2, 3.6, 6.1, 2.5, 2], [6.5, 3.2, 5.1, 2.0, 2], [6.4, 2.7, 5.3, 1.9, 2], [6.8, 3.0, 5.5, 2.1, 2], [5.7, 2.5, 5.0, 2.0, 2], [5.8, 2.8, 5.1, 2.4, 2], [6.4, 3.2, 5.3, 2.3, 2], [6.5, 3.0, 5.5, 1.8, 2], [7.7, 3.8, 6.7, 2.2, 2], [7.7, 2.6, 6.9, 2.3, 2], [6.0, 2.2, 5.0, 1.5, 2], [6.9, 3.2, 5.7, 2.3, 2], [5.6, 2.8, 4.9, 2.0, 2], [7.7, 2.8, 6.7, 2.0, 2], [6.3, 2.7, 4.9, 1.8, 2], [6.7, 3.3, 5.7, 2.1, 2], [7.2, 3.2, 6.0, 1.8, 2], [6.2, 2.8, 4.8, 1.8, 2], [6.1, 3.0, 4.9, 1.8, 2], [6.4, 2.8, 5.6, 2.1, 2], [7.2, 3.0, 5.8, 1.6, 2], [7.4, 2.8, 6.1, 1.9, 2], [7.9, 3.8, 6.4, 2.0, 2], [6.4, 2.8, 5.6, 2.2, 2], [6.3, 2.8, 5.1, 1.5, 2], [6.1, 2.6, 5.6, 1.4, 2], [7.7, 3.0, 6.1, 2.3, 2], [6.3, 3.4, 5.6, 2.4, 2], [6.4, 3.1, 5.5, 1.8, 2], [6.0, 3.0, 4.8, 1.8, 2], [6.9, 3.1, 5.4, 2.1, 2], [6.7, 3.1, 5.6, 2.4, 2], [6.9, 3.1, 5.1, 2.3, 2], [5.8, 2.7, 5.1, 1.9, 2], [6.8, 3.2, 5.9, 2.3, 2], [6.7, 3.3, 5.7, 2.5, 2], [6.7, 3.0, 5.2, 2.3, 2], [6.3, 2.5, 5.0, 1.9, 2], [6.5, 3.0, 5.2, 2.0, 2], [6.2, 3.4, 5.4, 2.3, 2], [5.9, 3.0, 5.1, 1.8, 2]];
+
+const SPECIES = {
+  0: { latin: 'Iris setosa', common: 'Bristle-pointed iris', color: 'var(--setosa)', hex: '#3e6c8e' },
+  1: { latin: 'Iris versicolor', common: 'Blue flag iris', color: 'var(--versicolor)', hex: '#b9822f' },
+  2: { latin: 'Iris virginica', common: 'Southern blue flag', color: 'var(--virginica)', hex: '#8b3f52' }
+};
+
+const K = 3;
+
+// ---- Standardize using the reference set's own mean/std (StandardScaler) ----
+function computeStats(data) {
+  const n = data.length;
+  const means = [0, 0, 0, 0];
+  const stds = [0, 0, 0, 0];
+  for (const row of data) for (let i = 0; i < 4; i++) means[i] += row[i];
+  for (let i = 0; i < 4; i++) means[i] /= n;
+  for (const row of data) for (let i = 0; i < 4; i++) stds[i] += (row[i] - means[i]) ** 2;
+  for (let i = 0; i < 4; i++) stds[i] = Math.sqrt(stds[i] / n);
+  return { means, stds };
+}
+const STATS = computeStats(IRIS_DATA);
+
+function standardize(vec) {
+  return vec.map((v, i) => (v - STATS.means[i]) / STATS.stds[i]);
+}
+
+function euclidean(a, b) {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) sum += (a[i] - b[i]) ** 2;
+  return Math.sqrt(sum);
+}
+
+function knnPredict(inputVec) {
+  const inputScaled = standardize(inputVec);
+  const distances = IRIS_DATA.map((row, idx) => ({
+    idx,
+    dist: euclidean(inputScaled, standardize(row.slice(0, 4))),
+    species: row[4]
+  }));
+  distances.sort((a, b) => a.dist - b.dist);
+  const neighbors = distances.slice(0, K);
+  const votes = {};
+  neighbors.forEach(n => { votes[n.species] = (votes[n.species] || 0) + 1; });
+  let winner = 0, maxVotes = -1;
+  for (const [sp, count] of Object.entries(votes)) {
+    if (count > maxVotes) { maxVotes = count; winner = Number(sp); }
+  }
+  return { winner, neighbors, agreement: maxVotes };
+}
+
+// ---- Flower icon (simple stylized SVG, recolors by species) ----
+function flowerSVG(hex) {
+  return `<svg width="52" height="52" viewBox="0 0 52 52">
+    <g fill="${hex}" opacity="0.85">
+      <ellipse cx="26" cy="14" rx="7" ry="13" transform="rotate(0 26 26)"/>
+      <ellipse cx="26" cy="14" rx="7" ry="13" transform="rotate(72 26 26)"/>
+      <ellipse cx="26" cy="14" rx="7" ry="13" transform="rotate(144 26 26)"/>
+      <ellipse cx="26" cy="14" rx="7" ry="13" transform="rotate(216 26 26)"/>
+      <ellipse cx="26" cy="14" rx="7" ry="13" transform="rotate(288 26 26)"/>
+    </g>
+    <circle cx="26" cy="26" r="4.5" fill="#22301d" opacity="0.75"/>
+  </svg>`;
+}
+
+// ---- Scatter plot (petal length vs petal width) ----
+const PLOT = { w: 460, h: 420, pad: 44 };
+const X_MIN = 0.5, X_MAX = 7.2, Y_MIN = -0.2, Y_MAX = 2.8;
+
+function toPx(pl, pw) {
+  const x = PLOT.pad + (pl - X_MIN) / (X_MAX - X_MIN) * (PLOT.w - PLOT.pad * 2);
+  const y = PLOT.h - PLOT.pad - (pw - Y_MIN) / (Y_MAX - Y_MIN) * (PLOT.h - PLOT.pad * 2);
+  return [x, y];
+}
+
+function buildScatterBase() {
+  const svg = document.getElementById('scatter');
+  let inner = `<g font-family="IBM Plex Mono, monospace" font-size="9.5" fill="var(--ink-soft)">`;
+
+  // axes
+  const [x0, y0] = toPx(X_MIN, Y_MIN);
+  const [x1, y1] = toPx(X_MAX, Y_MIN);
+  const [x0b, y0b] = toPx(X_MIN, Y_MAX);
+  inner += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="var(--line)" stroke-width="1"/>`;
+  inner += `<line x1="${x0}" y1="${y0}" x2="${x0b}" y2="${y0b}" stroke="var(--line)" stroke-width="1"/>`;
+
+  for (let pl = 1; pl <= 7; pl += 1) {
+    const [x, y] = toPx(pl, Y_MIN);
+    inner += `<text x="${x}" y="${y + 16}" text-anchor="middle">${pl}</text>`;
+  }
+  for (let pw = 0; pw <= 2.5; pw += 0.5) {
+    const [x, y] = toPx(X_MIN, pw);
+    inner += `<text x="${x - 10}" y="${y + 3}" text-anchor="end">${pw.toFixed(1)}</text>`;
+  }
+  inner += `<text x="${(x0+x1)/2}" y="${PLOT.h - 6}" text-anchor="middle">PETAL LENGTH (CM)</text>`;
+  inner += `<text x="14" y="${PLOT.h/2}" text-anchor="middle" transform="rotate(-90 14 ${PLOT.h/2})">PETAL WIDTH (CM)</text>`;
+  inner += `</g>`;
+
+  // reference points
+  inner += `<g id="refPoints">`;
+  IRIS_DATA.forEach(row => {
+    const [x, y] = toPx(row[2], row[3]);
+    inner += `<circle cx="${x}" cy="${y}" r="4" fill="${SPECIES[row[4]].hex}" opacity="0.45"/>`;
+  });
+  inner += `</g>`;
+
+  inner += `<g id="liveMarker"></g>`;
+
+  svg.innerHTML = inner;
+}
+
+function updateLiveMarker(pl, pw, hex) {
+  const [x, y] = toPx(pl, pw);
+  const g = document.getElementById('liveMarker');
+  g.innerHTML = `
+    <circle cx="${x}" cy="${y}" r="10" fill="${hex}" opacity="0.18">
+      <animate attributeName="r" values="8;13;8" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.28;0.05;0.28" dur="1.8s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="${x}" cy="${y}" r="6" fill="var(--live)" stroke="#fff" stroke-width="1.5"/>
+  `;
+}
+
+// ---- Wire up UI ----
+const sliders = {
+  sl: document.getElementById('sl'),
+  sw: document.getElementById('sw'),
+  pl: document.getElementById('pl'),
+  pw: document.getElementById('pw'),
+};
+const labels = {
+  sl: document.getElementById('val-sl'),
+  sw: document.getElementById('val-sw'),
+  pl: document.getElementById('val-pl'),
+  pw: document.getElementById('val-pw'),
+};
+
+function currentVec() {
+  return [parseFloat(sliders.sl.value), parseFloat(sliders.sw.value), parseFloat(sliders.pl.value), parseFloat(sliders.pw.value)];
+}
+
+function render() {
+  const vec = currentVec();
+  labels.sl.textContent = vec[0].toFixed(1) + ' cm';
+  labels.sw.textContent = vec[1].toFixed(1) + ' cm';
+  labels.pl.textContent = vec[2].toFixed(1) + ' cm';
+  labels.pw.textContent = vec[3].toFixed(1) + ' cm';
+
+  const { winner, neighbors, agreement } = knnPredict(vec);
+  const sp = SPECIES[winner];
+
+  document.getElementById('flowerIcon').innerHTML = flowerSVG(sp.hex);
+  document.getElementById('resultSpecies').textContent = sp.latin;
+  document.getElementById('resultSpecies').style.color = sp.color;
+  document.getElementById('resultCommon').textContent = sp.common;
+
+  document.getElementById('confidenceText').textContent = `${agreement} / ${K}`;
+  const fill = document.getElementById('confidenceFill');
+  fill.style.width = (agreement / K * 100) + '%';
+  fill.style.background = sp.color;
+
+  const list = document.getElementById('neighborList');
+  list.innerHTML = neighbors.map(n => {
+    const nsp = SPECIES[n.species];
+    return `<span class="neighbor-chip"><span class="dot" style="background:${nsp.hex}"></span>#${n.idx + 1} · ${nsp.latin.split(' ')[1]} · Δ${n.dist.toFixed(2)}</span>`;
+  }).join('');
+
+  updateLiveMarker(vec[2], vec[3], sp.hex);
+}
+
+Object.values(sliders).forEach(s => s.addEventListener('input', render));
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const preset = btn.dataset.preset;
+    let vec;
+    if (preset === 'random') {
+      const row = IRIS_DATA[Math.floor(Math.random() * IRIS_DATA.length)];
+      vec = row.slice(0, 4);
+    } else {
+      const targetSpecies = preset === 'setosa' ? 0 : preset === 'versicolor' ? 1 : 2;
+      const pool = IRIS_DATA.filter(r => r[4] === targetSpecies);
+      vec = pool[Math.floor(Math.random() * pool.length)].slice(0, 4);
+    }
+    sliders.sl.value = vec[0]; sliders.sw.value = vec[1]; sliders.pl.value = vec[2]; sliders.pw.value = vec[3];
+    render();
+  });
+});
+
+buildScatterBase();
+render();
+</script>
+
+</body>
+</html>
